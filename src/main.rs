@@ -22,21 +22,14 @@ fn main() {
         pause_and_exit();
     }
 
-    for i in parms.iter().skip(1) {
-        let (is_unicode, pure_str) = judge_unicode(i);
-
-        if is_unicode {
-            if let Ok(code) = u32::from_str_radix(&pure_str, 16)
-                && let Some(ch) = std::char::from_u32(code)
-            {
-                println!("<{}>\tU+{:04X}", ch, code);
+    for arg in parms.iter().skip(1) {
+        if let Some(code) = judge_unicode(arg) {
+            if let Some(ch) = std::char::from_u32(code) {
+                println!("<{}>\t{}", ch, format_unicode(code));
             }
         } else {
-            let chars: Vec<char> = i.chars().collect();
-            let codes: Vec<String> = chars
-                .iter()
-                .map(|ch| format!("U+{:04X}", *ch as u32))
-                .collect();
+            let chars: Vec<char> = arg.chars().collect();
+            let codes: Vec<String> = chars.iter().map(|ch| format_unicode(*ch as u32)).collect();
 
             for ch in &chars {
                 print!("{}\t", ch);
@@ -50,26 +43,42 @@ fn main() {
         }
     }
 }
-fn judge_unicode(s: &str) -> (bool, String) {
-    let each = s
-        .to_lowercase()
-        .replace("\\\\", "\\")
-        .trim_start_matches("u+")
-        .trim_start_matches("\\u")
-        .trim_matches(|t| t == '[' || t == ']')
-        .to_string();
-
-    if each.is_empty() || each.len() != 4 {
-        return (false, each);
+fn judge_unicode(s: &str) -> Option<u32> {
+    let trimmed = s.trim();
+    if trimmed.len() <= 2 {
+        return None;
     }
 
-    for c in each.chars() {
-        if !c.is_ascii_hexdigit() {
-            return (false, each);
-        }
+    let (prefix, rest) = trimmed.split_at(2);
+    if !prefix.eq_ignore_ascii_case("u+") {
+        return None;
     }
 
-    (true, each)
+    let cleaned = rest.trim();
+    if cleaned.len() < 4 || cleaned.len() > 6 {
+        return None;
+    }
+
+    if !cleaned.chars().all(|c| c.is_ascii_hexdigit()) {
+        return None;
+    }
+
+    let code = u32::from_str_radix(cleaned, 16).ok()?;
+
+    if code > 0x10FFFF {
+        return None;
+    }
+
+    Some(code)
+}
+
+fn format_unicode(code: u32) -> String {
+    let width = match code {
+        0x0000..=0xFFFF => 4,
+        0x10000..=0xFFFFF => 5,
+        _ => 6,
+    };
+    format!("U+{:0>width$X}", code, width = width)
 }
 
 fn print_help(exe_name: &str) {
@@ -91,7 +100,7 @@ fn print_help(exe_name: &str) {
     println!();
     println!("{} <Unicode chars> ...", exe_name);
     println!(
-        "[e.g.] >> {} 0074 U+0065 u+0073 \\U0074 \\u793A [4F8B]",
+        "[e.g.] >> {} u+0074 U+0065 u+0073 U+0074 U+793A U+4F8B",
         exe_name
     );
     println!(
@@ -111,7 +120,7 @@ fn print_help(exe_name: &str) {
     );
     println!();
     println!("{} <Unicode codes> <Unicode chars> ... (Mixed)", exe_name);
-    println!("[e.g.] >> {} U+6D4B \\u8BD5 Test", exe_name);
+    println!("[e.g.] >> {} U+6D4B U+8BD5 Test", exe_name);
     println!(
         r#"        | <测>    U+6D4B
         | <试>    U+8BD5
