@@ -10,7 +10,7 @@ fn pause_and_exit() {
 fn main() {
     let parms = std::env::args().collect::<Vec<String>>();
 
-    let accepted_args = vec!["-h", "--help", "-v", "--version"];
+    let accepted_args = ["-h", "--help", "-v", "--version"];
     if (parms.len() == 2 && (accepted_args.contains(&parms[1].as_str()))) || (parms.len() == 1) {
         print_help(
             std::path::PathBuf::from(parms[0].clone())
@@ -26,10 +26,10 @@ fn main() {
         let (is_unicode, pure_str) = judge_unicode(i);
 
         if is_unicode {
-            if let Ok(code) = u32::from_str_radix(&pure_str, 16) {
-                if let Some(ch) = std::char::from_u32(code) {
-                    println!("<{}>\tU+{:04X}", ch, code);
-                }
+            if let Ok(code) = u32::from_str_radix(&pure_str, 16)
+                && let Some(ch) = std::char::from_u32(code)
+            {
+                println!("<{}>\tU+{:04X}", ch, code);
             }
         } else {
             let chars: Vec<char> = i.chars().collect();
@@ -69,7 +69,7 @@ fn judge_unicode(s: &str) -> (bool, String) {
         }
     }
 
-    return (true, each);
+    (true, each)
 }
 
 fn print_help(exe_name: &str) {
