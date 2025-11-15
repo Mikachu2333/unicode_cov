@@ -24,8 +24,13 @@ fn main() {
 
     for arg in parms.iter().skip(1) {
         if let Some(code) = judge_unicode(arg) {
-            if let Some(ch) = std::char::from_u32(code) {
+            if let Some(ch) = char::from_u32(code) {
                 println!("<{}>\t{}", ch, format_unicode(code));
+            } else {
+                eprintln!(
+                    "Error: Invalid Unicode code point: {}",
+                    format_unicode(code)
+                );
             }
         } else {
             let chars: Vec<char> = arg.chars().collect();
@@ -45,17 +50,25 @@ fn main() {
 }
 fn judge_unicode(s: &str) -> Option<u32> {
     let trimmed = s.trim();
-    if trimmed.len() <= 2 {
+    if trimmed.chars().count() <= 2 {
         return None;
     }
 
-    let (prefix, rest) = trimmed.split_at(2);
-    if !prefix.eq_ignore_ascii_case("u+") {
+    // 使用字符迭代器而不是字节索引
+    let mut chars = trimmed.chars();
+    let first = chars.next()?;
+    let second = chars.next()?;
+
+    // 检查前两个字符是否为 "u+" 或 "U+"
+    if !(first.eq_ignore_ascii_case(&'u') && second == '+') {
         return None;
     }
 
+    let rest: String = chars.collect();
     let cleaned = rest.trim();
-    if cleaned.len() < 4 || cleaned.len() > 6 {
+
+    let char_count = cleaned.chars().count();
+    if !(4..=6).contains(&char_count) {
         return None;
     }
 
@@ -83,17 +96,8 @@ fn format_unicode(code: u32) -> String {
 
 fn print_help(exe_name: &str) {
     println!("┏━━━━━━━━━━━━━━━━━━━━┓");
-    print!("┃ Unicode  Converter ┃");
-    print!("  ");
-    print!("Version:{}", VERSION);
-    print!("  ");
-    println!(
-        "BuildTime:{}",
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_secs()
-    );
+    println!("┃ Unicode  Converter ┃");
+    println!("┃ Version: {}       ┃", VERSION);
     println!("┗━━━━━━━━━━━━━━━━━━━━┛");
 
     println!("Usage:");
@@ -112,7 +116,7 @@ fn print_help(exe_name: &str) {
         | <例>    U+4F8B"#
     );
     println!();
-    println!("{} <Unicode codes> ...", exe_name);
+    println!("{} <text> ...", exe_name);
     println!("[e.g.] >> {} 测试Test", exe_name);
     println!(
         r#"        | 测      试      T       e       s       t
